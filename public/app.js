@@ -93,7 +93,8 @@ function keepForEmoji(cp, prevVisible, inTagRun) {
 function cleanText(input, opts) {
   const findings = new Map(); // cp -> {count, category, action}
   let out = '';
-  let previewHtml = '';
+  let previewHtml = ''; // "before": the original, hidden characters marked
+  let afterHtml = '';   // "after": the clean text, removals/replacements highlighted
   let removed = 0;
   let prevVisible = '';
   let inTagRun = false;
@@ -118,7 +119,11 @@ function cleanText(input, opts) {
     if (cat === null) {
       out += ch;
       prevVisible = ch;
-      if (previewLen < previewCap) { previewHtml += esc(ch); previewLen += ch.length; }
+      if (previewLen < previewCap) {
+        previewHtml += esc(ch);
+        afterHtml += esc(ch);
+        previewLen += ch.length;
+      }
       continue;
     }
 
@@ -136,11 +141,16 @@ function cleanText(input, opts) {
     if (previewLen < previewCap) {
       const label = cat === 'punct' ? esc(ch) : abbrev(cp);
       previewHtml += `<mark class="m-${cat}" title="U+${hex(cp)} ${charName(cp)}">${label}</mark>`;
+      if (replacement) {
+        afterHtml += `<mark class="af-chg" title="U+${hex(cp)} ${charName(cp)} — ${action}">${esc(replacement)}</mark>`;
+      } else {
+        afterHtml += `<mark class="af-del" title="U+${hex(cp)} ${charName(cp)} — removed here">${abbrev(cp)}</mark>`;
+      }
       previewLen += ch.length;
     }
   }
 
-  return { out, findings, removed, previewHtml, truncated: input.length > previewCap };
+  return { out, findings, removed, previewHtml, afterHtml, truncated: input.length > previewCap };
 }
 
 function hex(cp) { return cp.toString(16).toUpperCase().padStart(4, '0'); }
@@ -213,6 +223,34 @@ downloadBtn.addEventListener('click', () => {
   triggerDownload(blob, 'scratched.txt');
 });
 
+// Before/After compare block shared by the scratch preview and the deep
+// rewrite. Preview only — the copy/download paths use the raw strings and are
+// never touched by this markup.
+function compareBlock(beforeHtml, afterHtml, legendHtml, note) {
+  return `
+    <div class="compare">
+      <div class="compare-bar">
+        <div class="segmented segmented--sm" role="radiogroup" aria-label="Compare view">
+          <button class="seg" type="button" role="radio" data-view="before" aria-checked="false">Before</button>
+          <button class="seg" type="button" role="radio" data-view="after" aria-checked="true">After</button>
+        </div>
+        <span class="legend">${legendHtml}</span>
+        <span class="legend-note micro">${note || 'Preview only — downloads are untouched'}</span>
+      </div>
+      <div class="preview card" data-pane="before" hidden>${beforeHtml}</div>
+      <div class="preview card" data-pane="after">${afterHtml}</div>
+    </div>`;
+}
+
+function wireCompare(root) {
+  const compare = root.querySelector('.compare');
+  if (!compare) return;
+  compare.querySelectorAll('.seg[data-view]').forEach((seg) => seg.addEventListener('click', () => {
+    compare.querySelectorAll('.seg[data-view]').forEach((s) => s.setAttribute('aria-checked', s === seg ? 'true' : 'false'));
+    compare.querySelectorAll('[data-pane]').forEach((p) => { p.hidden = p.dataset.pane !== seg.dataset.view; });
+  }));
+}
+
 function renderTextResults(res) {
   if (res.removed === 0) {
     textResults.innerHTML = `<p class="result-stat clean"><span class="num">0</span> hidden characters — already clean.</p>`;
@@ -227,11 +265,13 @@ function renderTextResults(res) {
         <span class="badge badge--${f.category}">${f.category === 'punct' ? 'normalized' : f.category === 'space' ? 'space' : f.category}</span>
         <span class="count">×${f.count} · ${f.action}</span>
       </div>`).join('');
+  const legend = `<span class="lg lg-del">removed</span><span class="lg lg-chg">replaced</span>`;
+  const note = `Preview only — downloads are untouched${res.truncated ? ' · first 30,000 characters shown' : ''}`;
   textResults.innerHTML = `
     <p class="result-stat"><span class="num">${res.removed.toLocaleString()}</span> hidden ${res.removed === 1 ? 'character' : 'characters'} scratched off. Clean copy is ready.</p>
     <div class="findings">${rows}</div>
-    <span class="preview-label micro">Where they were hiding${res.truncated ? ' (first 30,000 characters shown)' : ''}</span>
-    <div class="preview card">${res.previewHtml}</div>`;
+    ${compareBlock(res.previewHtml, res.afterHtml, legend, note)}`;
+  wireCompare(textResults);
 }
 
 /* ------------------------------------------------------------
@@ -549,8 +589,69 @@ rewriteBtn.addEventListener('click', async () => {
   }
 });
 
+/* Word-level diff (LCS over word tokens, whitespace-tolerant) so the compare
+   view can highlight what the rewrite removed, added, or changed. Returns null
+   above the size cap — the panes then render un-highlighted. */
+function diffTokens(a, b) {
+  const isWS = (t) => /^\s+$/.test(t);
+  const ta = a.split(/(\s+)/).filter(Boolean);
+  const tb = b.split(/(\s+)/).filter(Boolean);
+  const n = ta.length, m = tb.length;
+  if (n * m > 4000000) return null;
+  const eq = (x, y) => x === y || (isWS(x) && isWS(y));
+  const W = m + 1;
+  const dp = new Int32Array((n + 1) * W);
+  for (let i = n - 1; i >= 0; i--) {
+    for (let j = m - 1; j >= 0; j--) {
+      dp[i * W + j] = eq(ta[i], tb[j])
+        ? dp[(i + 1) * W + j + 1] + 1
+        : Math.max(dp[(i + 1) * W + j], dp[i * W + j + 1]);
+    }
+  }
+  const ops = [];
+  let i = 0, j = 0;
+  const push = (op, a2, b2) => {
+    const last = ops[ops.length - 1];
+    if (last && last.op === op) { last.a += a2; last.b += b2; }
+    else ops.push({ op, a: a2, b: b2 });
+  };
+  while (i < n && j < m) {
+    if (eq(ta[i], tb[j])) { push('same', ta[i], tb[j]); i++; j++; }
+    else if (dp[(i + 1) * W + j] >= dp[i * W + j + 1]) { push('del', ta[i], ''); i++; }
+    else { push('ins', '', tb[j]); j++; }
+  }
+  while (i < n) { push('del', ta[i], ''); i++; }
+  while (j < m) { push('ins', '', tb[j]); j++; }
+
+  // a deletion next to an insertion (allowing one whitespace run between) is a
+  // "changed" pair, not a remove + an add
+  for (let k = 0; k < ops.length; k++) {
+    if (ops[k].op !== 'del') continue;
+    let next = ops[k + 1];
+    if (next && next.op === 'same' && isWS(next.a)) next = ops[k + 2];
+    if (next && next.op === 'ins') { ops[k].changed = true; next.changed = true; }
+  }
+  return ops;
+}
+
+function diffPanes(before, after) {
+  const ops = diffTokens(before, after);
+  if (!ops) return { beforeHtml: escapeHtml(before), afterHtml: escapeHtml(after), highlighted: false };
+  let beforeHtml = '', afterHtml = '';
+  for (const r of ops) {
+    if (r.op === 'same') { beforeHtml += escapeHtml(r.a); afterHtml += escapeHtml(r.b); }
+    else if (r.op === 'del') beforeHtml += `<mark class="${r.changed ? 'df df-chg' : 'df df-del'}">${escapeHtml(r.a)}</mark>`;
+    else afterHtml += `<mark class="${r.changed ? 'df df-chg' : 'df df-add'}">${escapeHtml(r.b)}</mark>`;
+  }
+  return { beforeHtml, afterHtml, highlighted: true };
+}
+
 function renderRewrite(before, after) {
   const pct = wordChangePct(before, after);
+  const { beforeHtml, afterHtml, highlighted } = diffPanes(before, after);
+  const legend = highlighted
+    ? `<span class="lg lg-del">removed</span><span class="lg lg-chg">changed</span><span class="lg lg-add">added</span>`
+    : '';
   rewriteResults.innerHTML = `
     <div class="rewrite-out card">
       <div class="rewrite-head">
@@ -558,9 +659,9 @@ function renderRewrite(before, after) {
         <button class="btn btn--sm btn--purple" id="rwCopy" type="button">Copy rewrite</button>
         <button class="btn btn--sm" id="rwDownload" type="button">Download .txt</button>
       </div>
-      <div id="rwText"></div>
+      ${compareBlock(beforeHtml, afterHtml, legend, 'Preview only — copy &amp; download get the clean rewrite')}
     </div>`;
-  rewriteResults.querySelector('#rwText').textContent = after;
+  wireCompare(rewriteResults);
   rewriteResults.querySelector('#rwCopy').addEventListener('click', async (e) => {
     try {
       await navigator.clipboard.writeText(after);

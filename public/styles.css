@@ -120,23 +120,6 @@ h1, h2, h3 { font-weight: 700; letter-spacing: -0.02em; }
   gap: 28px;
   flex-shrink: 0;
 }
-.header-links {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 5px;
-  padding-top: 4px;
-}
-.header-links a, .header-links button {
-  font-family: var(--mono);
-  font-size: 10px;
-  letter-spacing: 0.15em;
-  text-transform: uppercase;
-  color: rgba(19,19,19,0.65);
-  text-decoration: none;
-  transition: color 0.25s var(--ease-ft);
-}
-.header-links a:hover, .header-links button:hover { color: var(--ft-ink); }
 .counter { text-align: right; }
 .counter .label { color: rgba(19,19,19,0.65); }
 .counter .value {
@@ -396,6 +379,64 @@ textarea#textInput::placeholder { color: rgba(19,19,19,0.35); }
 .preview mark.m-punct { background: var(--ft-orange); color: var(--ft-ink); }
 .preview-label { margin-top: 20px; color: rgba(19,19,19,0.5); }
 
+/* ---- before/after compare ---- */
+.compare { margin-top: 18px; }
+.compare .preview { margin-top: 0; }
+.compare-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 16px;
+  margin-bottom: 10px;
+}
+.segmented--sm .seg { padding: 6px 16px; font-size: 0.8rem; }
+.legend { display: inline-flex; gap: 8px; }
+.lg {
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 3px 9px;
+  border-radius: 4px;
+}
+.lg-del { background: rgba(255,86,47,0.16); color: #a03214; text-decoration: line-through; }
+.lg-chg { background: rgba(217,154,1,0.2); color: #7a5600; }
+.lg-add { background: rgba(47,143,91,0.16); color: #1d6b41; }
+.legend-note { margin-left: auto; color: rgba(19,19,19,0.45); }
+
+/* after-view marks for the scratch pass: a struck chip where an invisible
+   character was removed, a highlight on what a space/punct became */
+.preview mark.af-del {
+  background: rgba(255,86,47,0.16);
+  color: #a03214;
+  text-decoration: line-through;
+}
+.preview mark.af-chg {
+  font: inherit;
+  font-size: inherit;
+  letter-spacing: inherit;
+  vertical-align: baseline;
+  padding: 0 2px;
+  margin: 0;
+  border-radius: 3px;
+  background: rgba(217,154,1,0.28);
+  color: var(--ft-ink);
+}
+
+/* word-diff marks for the deep rewrite: inline text highlights, not chips */
+.preview mark.df {
+  font: inherit;
+  font-size: inherit;
+  letter-spacing: inherit;
+  vertical-align: baseline;
+  padding: 0 1px;
+  margin: 0;
+  border-radius: 3px;
+}
+.preview mark.df-del { background: rgba(255,86,47,0.16); color: #a03214; text-decoration: line-through; }
+.preview mark.df-chg { background: rgba(217,154,1,0.24); color: var(--ft-ink); }
+.preview mark.df-add { background: rgba(47,143,91,0.18); color: #14532d; }
+
 /* ============================================================
    Dropzone + file cards
    ============================================================ */
@@ -552,8 +593,6 @@ textarea#textInput::placeholder { color: rgba(19,19,19,0.35); }
   padding: 20px;
   font-size: 0.98rem;
   line-height: 1.7;
-  white-space: pre-wrap;
-  word-break: break-word;
   color: var(--ft-ink);
 }
 .rewrite-head {
@@ -563,9 +602,8 @@ textarea#textInput::placeholder { color: rgba(19,19,19,0.35); }
   gap: 10px 16px;
   margin-bottom: 14px;
 }
-.rewrite-head .stat { font-weight: 700; }
+.rewrite-head .stat { font-weight: 700; margin-right: auto; }
 .rewrite-head .stat .num { color: var(--ft-purple); font-family: var(--mono); }
-.rewrite-head .btn { margin-left: auto; }
 .rewrite-error {
   padding: 16px 20px;
   border-left: 3px solid var(--ft-red);
