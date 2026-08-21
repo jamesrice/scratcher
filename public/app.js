@@ -220,18 +220,18 @@ function abbrev(cp) {
 }
 
 /* ------------------------------------------------------------
-   Header counter (running total, stored locally)
+   Header counter — per-visit only. Every page load starts a
+   fresh session: nothing is persisted, and any state a previous
+   version stored is cleared here.
    ------------------------------------------------------------ */
 const counterEl = document.getElementById('scratchCount');
+let sessionTotal = 0;
 function bumpCounter(n) {
   if (!n) return;
-  let total = 0;
-  try { total = parseInt(localStorage.getItem('scratcher-total') || '0', 10) || 0; } catch (e) {}
-  total += n;
-  try { localStorage.setItem('scratcher-total', String(total)); } catch (e) {}
-  counterEl.textContent = total.toLocaleString();
+  sessionTotal += n;
+  counterEl.textContent = sessionTotal.toLocaleString();
 }
-try { counterEl.textContent = (parseInt(localStorage.getItem('scratcher-total') || '0', 10) || 0).toLocaleString(); } catch (e) {}
+try { localStorage.clear(); } catch (e) {}
 
 /* ------------------------------------------------------------
    Text tab wiring

@@ -99,22 +99,8 @@ h1, h2, h3 { font-weight: 700; letter-spacing: -0.02em; }
   font-weight: 700;
   letter-spacing: -0.02em;
 }
-/* SVG logo, with the text wordmark as fallback until/unless the file exists */
 .wordmark .logo-img { display: block; height: 48px; width: auto; }
-.wordmark .scratch { display: none; }
-.wordmark.logo-missing .logo-img { display: none; }
-.wordmark.logo-missing .scratch { display: inline-block; }
 @media (min-width: 1024px) { .wordmark .logo-img { height: 56px; } }
-.wordmark .scratch {
-  position: relative;
-  display: inline-block;
-}
-.wordmark .scratch svg {
-  position: absolute;
-  left: -2%; right: -2%; bottom: -7px;
-  width: 104%; height: 10px;
-  overflow: visible;
-}
 .brand-tag {
   margin-top: 14px;
   max-width: 44ch;
