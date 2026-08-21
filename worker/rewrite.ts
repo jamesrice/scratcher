@@ -95,6 +95,27 @@ function scrubInvisible(s: string): string {
   return s.replace(INVISIBLE, '')
 }
 
+// Smart-punctuation normalization, matching the client's PUNCT_MAP. Applied to
+// every rewrite so Layer B can never hand back the very fingerprint the user is
+// scrubbing — unspaced en/em-dash asides being the most recognizable one. Built
+// from code points for the same no-literals reason as the invisible regex.
+const PUNCT_MAP: Record<number, string> = {
+  0x2018: "'", 0x2019: "'", 0x201a: "'", 0x201b: "'", // single quotes
+  0x201c: '"', 0x201d: '"', 0x201e: '"', 0x201f: '"', // double quotes
+  0x2032: "'", 0x2033: '"',                            // primes
+  0x2010: '-', 0x2011: '-', 0x2012: '-',               // hyphen variants
+  0x2013: '-', 0x2014: '-', 0x2015: '-', 0x2212: '-',  // en/em dash, bar, minus
+  0x2026: '...',                                       // ellipsis
+}
+const PUNCT = new RegExp(
+  '[' + Object.keys(PUNCT_MAP).map((cp) => '\\u' + Number(cp).toString(16).padStart(4, '0')).join('') + ']',
+  'g',
+)
+
+function scrubTypography(s: string): string {
+  return s.replace(PUNCT, (ch) => PUNCT_MAP[ch.codePointAt(0) as number] ?? ch)
+}
+
 async function callGemini(
   key: string,
   prompt: string,
@@ -148,6 +169,7 @@ function rewritePrompt(text: string, strength: Strength): string {
     '- Preserve the meaning, facts, names, numbers, and quotations exactly.',
     '- Preserve the tone and register (formal stays formal, casual stays casual).',
     '- Preserve structure: same number of paragraphs, same list items, same headings. Keep Markdown/formatting intact.',
+    '- Use plain ASCII punctuation only: straight quotes and plain hyphens. Never use em dashes, en dashes, or curly quotes, and avoid dash-wrapped asides entirely — restructure those as separate sentences or use commas or parentheses.',
     '- Keep the language the same as the input.',
     '- Do NOT add commentary, preamble, notes, or explanations. Do NOT wrap the output in code fences.',
     '- Return ONLY the rewritten text, nothing else.',
@@ -196,7 +218,7 @@ export const onRequestPost = async (context: PagesContext): Promise<Response> =>
       maxOutputTokens: 16384,
     })
     if (!out) return errorResponse(upstreamMessage(status))
-    return jsonResponse({ text: scrubInvisible(out.trim()) })
+    return jsonResponse({ text: scrubTypography(scrubInvisible(out.trim())) })
   } catch (err) {
     console.error(`Unhandled rewrite failure: ${String(err)}`)
     return errorResponse('The rewrite engine could not rewrite this just now.')
