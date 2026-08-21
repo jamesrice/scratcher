@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="styles.css" />
+  <link rel="stylesheet" href="styles.css?v=3" />
   <meta property="og:title" content="Scratcher" />
   <meta property="og:description" content="Scratch the watermark off. Hidden AI fingerprints out of your text and images — all in your browser." />
   <meta property="og:type" content="website" />
@@ -18,9 +18,13 @@
 
   <header class="site-header">
     <div>
+      <!-- The [hidden] swap works from the img's own events, independent of any
+           cached stylesheet, so the logo and the text fallback can never render
+           at the same time. -->
       <h1 class="wordmark">
-        <img class="logo-img" src="scratcher.svg" alt="Scratcher" onerror="this.parentElement.classList.add('logo-missing')" />
-        <span class="scratch">Scratcher<svg viewBox="0 0 100 10" preserveAspectRatio="none" aria-hidden="true"><path d="M2 7 L26 3 L48 8 L72 2 L98 6" fill="none" stroke="#4C00FF" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+        <img class="logo-img" src="scratcher.svg" alt="Scratcher"
+             onerror="this.hidden = true; document.getElementById('wmFallback').hidden = false;" />
+        <span class="scratch" id="wmFallback" hidden>Scratcher<svg viewBox="0 0 100 10" preserveAspectRatio="none" aria-hidden="true"><path d="M2 7 L26 3 L48 8 L72 2 L98 6" fill="none" stroke="#4C00FF" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
       </h1>
       <p class="brand-tag micro">Scratch the watermark off. Hidden AI fingerprints out of your text and images — all in your browser.</p>
     </div>
@@ -205,6 +209,6 @@
     </nav>
   </footer>
 
-  <script src="app.js"></script>
+  <script src="app.js?v=3"></script>
 </body>
 </html>
