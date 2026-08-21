@@ -99,6 +99,12 @@ h1, h2, h3 { font-weight: 700; letter-spacing: -0.02em; }
   font-weight: 700;
   letter-spacing: -0.02em;
 }
+/* SVG logo, with the text wordmark as fallback until/unless the file exists */
+.wordmark .logo-img { display: block; height: 48px; width: auto; }
+.wordmark .scratch { display: none; }
+.wordmark.logo-missing .logo-img { display: none; }
+.wordmark.logo-missing .scratch { display: inline-block; }
+@media (min-width: 1024px) { .wordmark .logo-img { height: 56px; } }
 .wordmark .scratch {
   position: relative;
   display: inline-block;
@@ -296,6 +302,68 @@ textarea#textInput::placeholder { color: rgba(19,19,19,0.35); }
 }
 .opt input:disabled { opacity: 0.55; cursor: default; }
 .opt input:disabled + span { opacity: 0.55; }
+
+.sample-link {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ft-purple);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  transition: color 0.25s var(--ease-ft);
+}
+.sample-link:hover { color: var(--ft-purple-deep); }
+
+/* ---- verification summary ---- */
+.verify { margin-top: 16px; padding: 16px 20px; }
+.verify__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px 16px;
+  margin-bottom: 12px;
+}
+.verify__head .micro { color: var(--ft-purple); }
+.verify__scanned {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: rgba(19,19,19,0.55);
+}
+.verify ul {
+  list-style: none;
+  display: grid;
+  gap: 6px;
+  grid-template-columns: 1fr;
+}
+@media (min-width: 800px) { .verify ul { grid-template-columns: 1fr 1fr; } }
+.verify li {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  font-size: 0.92rem;
+}
+.verify .v-ico {
+  flex-shrink: 0;
+  min-width: 22px;
+  text-align: center;
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 5px;
+  border-radius: 100px;
+}
+.v-ok .v-ico { background: rgba(47,143,91,0.15); color: var(--ft-green); }
+.v-hit .v-ico { background: var(--ft-purple); color: var(--ft-beige); }
+.v-off { opacity: 0.45; }
+.v-off .v-ico { background: rgba(19,19,19,0.1); color: var(--ft-ink); }
+.verify .v-note {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(19,19,19,0.5);
+}
 
 .actions { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
 

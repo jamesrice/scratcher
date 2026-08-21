@@ -100,9 +100,11 @@ function cleanText(input, opts) {
   let inTagRun = false;
   const previewCap = 30000;
   let previewLen = 0;
+  let scanned = 0;
   const esc = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
   for (const ch of input) {
+    scanned++;
     const cp = ch.codePointAt(0);
     let cat = classify(cp);
 
@@ -150,7 +152,57 @@ function cleanText(input, opts) {
     }
   }
 
-  return { out, findings, removed, previewHtml, afterHtml, truncated: input.length > previewCap };
+  return { out, findings, removed, scanned, previewHtml, afterHtml, truncated: input.length > previewCap };
+}
+
+/* ------------------------------------------------------------
+   Verification summary — affirms every category explicitly so a
+   clean scan is stated, not implied. The scan is deterministic:
+   every code point is checked against the full inventory, so a
+   zero is a true zero, not a blind spot.
+   ------------------------------------------------------------ */
+const VERIFY_ROWS = [
+  { key: 'zerowidth', label: 'Zero-width & format characters',
+    match: (cp) => [0x200B, 0x200C, 0x200D, 0x2060, 0xFEFF, 0x00AD, 0x034F, 0x180E].includes(cp) },
+  { key: 'bidi', label: 'Bidirectional controls',
+    match: (cp) => cp === 0x200E || cp === 0x200F || cp === 0x061C || (cp >= 0x202A && cp <= 0x202E) || (cp >= 0x2066 && cp <= 0x2069) },
+  { key: 'vs', label: 'Variation selectors',
+    match: (cp) => (cp >= 0xFE00 && cp <= 0xFE0F) || (cp >= 0xE0100 && cp <= 0xE01EF) },
+  { key: 'tag', label: 'Tag characters',
+    match: (cp) => cp >= 0xE0000 && cp <= 0xE007F },
+  { key: 'nonchar', label: 'Noncharacters',
+    match: (cp) => (cp >= 0xFDD0 && cp <= 0xFDEF) || (cp & 0xFFFE) === 0xFFFE },
+  { key: 'space', label: 'Unusual spaces', opt: 'spaces',
+    match: (cp, cat) => cat === 'space' },
+  { key: 'punct', label: 'Smart punctuation', opt: 'punct',
+    match: (cp, cat) => cat === 'punct' },
+];
+
+function verificationHtml(res, opts) {
+  const counts = {};
+  for (const row of VERIFY_ROWS) counts[row.key] = 0;
+  for (const [cp, f] of res.findings) {
+    for (const row of VERIFY_ROWS) {
+      if (row.match(cp, f.category)) { counts[row.key] += f.count; break; }
+    }
+  }
+  const rows = VERIFY_ROWS.map((row) => {
+    if (row.opt && !opts[row.opt]) {
+      return `<li class="v-off"><span class="v-ico">–</span>${row.label} <span class="v-note">check disabled</span></li>`;
+    }
+    const n = counts[row.key];
+    return n === 0
+      ? `<li class="v-ok"><span class="v-ico">✓</span>${row.label} <span class="v-note">none found</span></li>`
+      : `<li class="v-hit"><span class="v-ico">${n}</span>${row.label} <span class="v-note">${row.opt ? 'normalized' : 'removed'}</span></li>`;
+  }).join('');
+  return `
+    <div class="verify card">
+      <div class="verify__head">
+        <span class="micro">Verification</span>
+        <span class="verify__scanned">Scanned ${res.scanned.toLocaleString()} characters — every code point, every category.</span>
+      </div>
+      <ul>${rows}</ul>
+    </div>`;
 }
 
 function hex(cp) { return cp.toString(16).toUpperCase().padStart(4, '0'); }
@@ -197,11 +249,25 @@ let lastClean = null;
 scratchBtn.addEventListener('click', () => {
   const src = textInput.value;
   if (!src) { textResults.innerHTML = ''; return; }
-  const res = cleanText(src, { spaces: optSpaces.checked, punct: optPunct.checked });
+  const opts = { spaces: optSpaces.checked, punct: optPunct.checked };
+  const res = cleanText(src, opts);
   lastClean = res.out;
   bumpCounter(res.removed);
-  renderTextResults(res);
+  renderTextResults(res, opts);
   copyBtn.disabled = downloadBtn.disabled = false;
+});
+
+/* Salted demo: every detectable category in one paragraph, so you can watch
+   the scanner catch each one before trusting it with real text. */
+const SAMPLE =
+  'This looks like a normal sentence\u200B, but it isn\u2019t \u2014 it\u2019s salted\u00AD with hidden characters.' +
+  ' There are zero\u200Cwidth non-joiners, a zero\u200Dwidth joiner, a word\u2060joiner and a BOM\uFEFF in here,' +
+  ' plus bidi marks \u200Ehere\u202Aand here\u202C, a variation selector on this A\uFE00, two tag characters\u{E0061}\u{E0062},' +
+  ' a noncharacter\uFDD0, an NBSP\u00A0here, a thin\u2009space, \u201Ccurly quotes\u201D and an ellipsis\u2026';
+
+document.getElementById('sampleBtn').addEventListener('click', () => {
+  textInput.value = SAMPLE;
+  scratchBtn.click();
 });
 
 copyBtn.addEventListener('click', async () => {
@@ -251,9 +317,11 @@ function wireCompare(root) {
   }));
 }
 
-function renderTextResults(res) {
+function renderTextResults(res, opts) {
   if (res.removed === 0) {
-    textResults.innerHTML = `<p class="result-stat clean"><span class="num">0</span> hidden characters — already clean.</p>`;
+    textResults.innerHTML = `
+      <p class="result-stat clean"><span class="num">0</span> hidden characters — already clean.</p>
+      ${verificationHtml(res, opts)}`;
     return;
   }
   const rows = [...res.findings.entries()]
@@ -269,6 +337,7 @@ function renderTextResults(res) {
   const note = `Preview only — downloads are untouched${res.truncated ? ' · first 30,000 characters shown' : ''}`;
   textResults.innerHTML = `
     <p class="result-stat"><span class="num">${res.removed.toLocaleString()}</span> hidden ${res.removed === 1 ? 'character' : 'characters'} scratched off. Clean copy is ready.</p>
+    ${verificationHtml(res, opts)}
     <div class="findings">${rows}</div>
     ${compareBlock(res.previewHtml, res.afterHtml, legend, note)}`;
   wireCompare(textResults);

@@ -19,6 +19,7 @@
   <header class="site-header">
     <div>
       <h1 class="wordmark">
+        <img class="logo-img" src="scratcher.svg" alt="Scratcher" onerror="this.parentElement.classList.add('logo-missing')" />
         <span class="scratch">Scratcher<svg viewBox="0 0 100 10" preserveAspectRatio="none" aria-hidden="true"><path d="M2 7 L26 3 L48 8 L72 2 L98 6" fill="none" stroke="#4C00FF" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
       </h1>
       <p class="brand-tag micro">Scratch the watermark off. Hidden AI fingerprints out of your text and images — all in your browser.</p>
@@ -53,6 +54,7 @@
           <label class="opt"><input type="checkbox" checked disabled /><span>Invisible characters</span></label>
           <label class="opt"><input type="checkbox" id="optSpaces" checked /><span>Unusual spaces</span></label>
           <label class="opt"><input type="checkbox" id="optPunct" checked /><span>Smart punctuation</span></label>
+          <button class="sample-link" id="sampleBtn" type="button">Try a watermarked sample</button>
         </div>
 
         <div class="actions">
@@ -163,7 +165,7 @@
     <div class="cols">
       <div>
         <p class="jp">スクラッチャー — Scratcher</p>
-        <p class="blurb">Strips hidden Unicode watermarks from text and EXIF, XMP, IPTC and C2PA metadata from images before you share. Everything runs client-side — your words and pixels stay yours.</p>
+        <p class="blurb">Strips hidden Unicode watermarks from text and EXIF, XMP, IPTC and C2PA metadata from images before you share.</p>
       </div>
       <div class="right">
         <span class="runs">Running on Gemini 3.6 Flash</span>
