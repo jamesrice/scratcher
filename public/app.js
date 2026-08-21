@@ -484,6 +484,96 @@ dropzone.addEventListener('drop', (e) => {
 });
 
 /* ------------------------------------------------------------
+   Deep rewrite (Layer B) — POSTs the scrubbed text to the Worker,
+   which runs a Gemini paraphrase pass to disturb word-choice
+   watermarks. Falls back gracefully when the API isn't reachable
+   (e.g. opening index.html straight off disk with no Worker).
+   ------------------------------------------------------------ */
+const rewriteBtn = document.getElementById('rewriteBtn');
+const rewriteResults = document.getElementById('rewriteResults');
+const segButtons = document.querySelectorAll('.seg');
+let strength = 'balanced';
+
+segButtons.forEach((seg) => seg.addEventListener('click', () => {
+  segButtons.forEach((s) => s.setAttribute('aria-checked', s === seg ? 'true' : 'false'));
+  strength = seg.dataset.strength;
+}));
+
+// prefer the just-scratched text; fall back to whatever is in the textarea
+function textForRewrite() {
+  if (lastClean !== null && lastClean.trim()) return lastClean;
+  return textInput.value;
+}
+
+// crude word-difference estimate so the result can say how much moved
+function wordChangePct(before, after) {
+  const norm = (s) => s.toLowerCase().match(/[\p{L}\p{N}']+/gu) || [];
+  const a = norm(before), b = new Set(norm(after));
+  if (!a.length) return 0;
+  let kept = 0;
+  for (const w of a) if (b.has(w)) kept++;
+  return Math.round((1 - kept / a.length) * 100);
+}
+
+rewriteBtn.addEventListener('click', async () => {
+  const src = textForRewrite();
+  if (!src.trim()) {
+    rewriteResults.innerHTML = `<div class="rewrite-error card">Add some text above (and scratch it) before running the deep rewrite.</div>`;
+    return;
+  }
+
+  const original = rewriteBtn.innerHTML;
+  rewriteBtn.disabled = true;
+  rewriteBtn.innerHTML = `<span class="spinner"></span> Rewriting…`;
+  rewriteResults.innerHTML = '';
+
+  try {
+    const res = await fetch('/api/rewrite', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text: src, strength }),
+    });
+    const data = await res.json().catch(() => ({}));
+
+    if (!res.ok || data.error) {
+      rewriteResults.innerHTML = `<div class="rewrite-error card">${escapeHtml(data.error || 'The rewrite engine could not rewrite this just now.')}</div>`;
+      return;
+    }
+    renderRewrite(src, data.text || '');
+  } catch (e) {
+    // network/API unreachable — most likely running without the Worker
+    rewriteResults.innerHTML = `<div class="rewrite-error card">Couldn’t reach the rewrite engine. The deep rewrite runs on the server, so it needs the deployed site (scratcher.fictiontribe.com) or a local <code>wrangler dev</code> — the local Unicode scrub above works anywhere.</div>`;
+  } finally {
+    rewriteBtn.disabled = false;
+    rewriteBtn.innerHTML = original;
+  }
+});
+
+function renderRewrite(before, after) {
+  const pct = wordChangePct(before, after);
+  rewriteResults.innerHTML = `
+    <div class="rewrite-out card">
+      <div class="rewrite-head">
+        <span class="stat"><span class="num">~${pct}%</span> of the wording changed · meaning preserved</span>
+        <button class="btn btn--sm btn--purple" id="rwCopy" type="button">Copy rewrite</button>
+        <button class="btn btn--sm" id="rwDownload" type="button">Download .txt</button>
+      </div>
+      <div id="rwText"></div>
+    </div>`;
+  rewriteResults.querySelector('#rwText').textContent = after;
+  rewriteResults.querySelector('#rwCopy').addEventListener('click', async (e) => {
+    try {
+      await navigator.clipboard.writeText(after);
+      e.target.textContent = 'Copied';
+      setTimeout(() => { e.target.textContent = 'Copy rewrite'; }, 1600);
+    } catch (_) {}
+  });
+  rewriteResults.querySelector('#rwDownload').addEventListener('click', () => {
+    triggerDownload(new Blob([after], { type: 'text/plain;charset=utf-8' }), 'scratched-rewrite.txt');
+  });
+}
+
+/* ------------------------------------------------------------
    Tabs
    ------------------------------------------------------------ */
 const tabs = document.querySelectorAll('.tab');

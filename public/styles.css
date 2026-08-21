@@ -500,6 +500,90 @@ textarea#textInput::placeholder { color: rgba(19,19,19,0.35); }
   color: rgba(19,19,19,0.8);
 }
 
+/* ============================================================
+   Deep rewrite (Layer B) — server-side Gemini pass
+   ============================================================ */
+.deep {
+  margin-top: 34px;
+  padding: 26px;
+  border-top: 3px solid var(--ft-purple);
+}
+.deep__head .micro { color: var(--ft-purple); }
+.deep__head h3 { margin-top: 10px; font-size: 1.3rem; letter-spacing: -0.02em; }
+.deep__head em { font-style: normal; color: var(--ft-purple); }
+.deep__head p {
+  margin-top: 10px;
+  max-width: 64ch;
+  font-size: 0.95rem;
+  line-height: 1.6;
+  color: rgba(19,19,19,0.78);
+}
+.deep__controls {
+  margin-top: 20px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 14px;
+}
+.segmented {
+  display: inline-flex;
+  border: 2px solid var(--ft-ink);
+  border-radius: 100px;
+  overflow: hidden;
+}
+.seg {
+  padding: 9px 20px;
+  font-weight: 700;
+  font-size: 0.88rem;
+  color: var(--ft-ink);
+  transition: background 0.25s var(--ease-ft), color 0.25s var(--ease-ft);
+}
+.seg + .seg { border-left: 2px solid var(--ft-ink); }
+.seg[aria-checked="true"] { background: var(--ft-ink); color: var(--ft-beige); }
+.seg:not([aria-checked="true"]):hover { background: rgba(76,0,255,0.08); color: var(--ft-purple); }
+.deep__note {
+  margin-top: 14px;
+  color: rgba(19,19,19,0.5);
+  max-width: 70ch;
+  line-height: 1.6;
+}
+#rewriteResults:not(:empty) { margin-top: 22px; }
+.rewrite-out {
+  padding: 20px;
+  font-size: 0.98rem;
+  line-height: 1.7;
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: var(--ft-ink);
+}
+.rewrite-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 10px 16px;
+  margin-bottom: 14px;
+}
+.rewrite-head .stat { font-weight: 700; }
+.rewrite-head .stat .num { color: var(--ft-purple); font-family: var(--mono); }
+.rewrite-head .btn { margin-left: auto; }
+.rewrite-error {
+  padding: 16px 20px;
+  border-left: 3px solid var(--ft-red);
+  font-size: 0.95rem;
+  line-height: 1.6;
+  color: rgba(19,19,19,0.85);
+}
+.spinner {
+  display: inline-block;
+  width: 15px; height: 15px;
+  border: 2px solid rgba(255,255,255,0.4);
+  border-top-color: var(--ft-beige);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+  vertical-align: -2px;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
 /* ---- more from the lab ---- */
 .tool-cards {
   margin-top: 28px;

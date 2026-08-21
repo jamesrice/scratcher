@@ -1,0 +1,16 @@
+{
+  "name": "scratcher",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Client-side AI watermark remover with an optional Gemini deep-rewrite pass.",
+  "scripts": {
+    "dev": "wrangler dev",
+    "preview": "wrangler dev",
+    "deploy": "wrangler deploy"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^5.20260820.1",
+    "typescript": "^5.7.0",
+    "wrangler": "^4.0.0"
+  }
+}

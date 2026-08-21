@@ -1,0 +1,27 @@
+{
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"name": "scratcher",
+	"main": "worker/index.ts",
+	"compatibility_date": "2025-10-01",
+	"observability": {
+		"enabled": true
+	},
+	// scratcher.fictiontribe.com — the zone is fictiontribe.com. As with
+	// imagology, if a same-named Pages project already claims this host, the
+	// route step of `wrangler deploy` fails until that old project is deleted in
+	// the dashboard.
+	"routes": [
+		{
+			"pattern": "scratcher.fictiontribe.com",
+			"custom_domain": true
+		}
+	],
+	// Plain static site (no build step). The Worker serves ./public as assets;
+	// run_worker_first keeps /api/* on the Worker, everything else is assets.
+	"assets": {
+		"directory": "./public",
+		"binding": "ASSETS",
+		"run_worker_first": ["/api/*"]
+	}
+	// Secret, set once per environment: wrangler secret put GEMINI_API_KEY
+}

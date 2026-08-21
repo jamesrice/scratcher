@@ -41,7 +41,7 @@
       <section class="hero">
         <h2>Clean text. Clean files.<br /><em>No trace.</em></h2>
         <p>AI output ships with fingerprints you can’t see — zero-width characters buried in the prose, EXIF and C2PA manifests stamped into the pixels. Scratcher finds them, shows you exactly where they were hiding, and hands back a clean copy.</p>
-        <span class="privacy-pill"><span class="dot"></span>100% client-side · nothing ever uploads</span>
+        <span class="privacy-pill"><span class="dot"></span>Scrubbing runs in your browser · deep rewrite is opt-in</span>
       </section>
 
       <div class="tabs" role="tablist" aria-label="Cleaner mode">
@@ -66,6 +66,25 @@
         </div>
 
         <div class="results" id="textResults" aria-live="polite"></div>
+
+        <!-- ----- Deep rewrite (server-side Gemini pass) ----- -->
+        <div class="deep card" id="deepPass">
+          <div class="deep__head">
+            <span class="micro">Layer B · deep rewrite</span>
+            <h3>Rewrite the word choice too.</h3>
+            <p>Invisible characters are only half the story. The deepest watermarks live in <em>which words</em> the model picked — there’s no character to delete. This pass sends your scratched text through Gemini to re-express it in different words, resampling the token stream and disturbing that statistical signal. Runs on our server, not in your browser.</p>
+          </div>
+          <div class="deep__controls">
+            <div class="segmented" role="radiogroup" aria-label="Rewrite strength">
+              <button class="seg" type="button" role="radio" data-strength="light" aria-checked="false">Light</button>
+              <button class="seg" type="button" role="radio" data-strength="balanced" aria-checked="true">Balanced</button>
+              <button class="seg" type="button" role="radio" data-strength="thorough" aria-checked="false">Thorough</button>
+            </div>
+            <button class="btn btn--purple" id="rewriteBtn" type="button">Deep rewrite</button>
+          </div>
+          <p class="deep__note micro">No detector — text or image — can promise every checker passes or fails. Scratcher does the removable work and is honest about the rest.</p>
+          <div class="results" id="rewriteResults" aria-live="polite"></div>
+        </div>
       </section>
 
       <!-- ================= IMAGES ================= -->
@@ -151,7 +170,7 @@
         <p class="blurb">Strips hidden Unicode watermarks from text and EXIF, XMP, IPTC and C2PA metadata from images before you share. Everything runs client-side — your words and pixels stay yours.</p>
       </div>
       <div class="right">
-        <span class="runs">Runs entirely in your browser</span>
+        <span class="runs">Scrubbing in your browser · rewrite on Gemini Flash</span>
         <a class="ft-credit" href="https://fictiontribe.com" target="_blank" rel="noopener noreferrer" aria-label="A product of Fiction Tribe">
           <span class="micro">A product of</span>
           <svg viewBox="0 0 227 28" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Fiction Tribe">
