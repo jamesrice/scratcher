@@ -20,8 +20,12 @@
  * bodies to Cloudflare error pages, destroying our JSON), same retry.
  */
 
+import { generateContent, textOf, finishReasonOf, type FtAiEnv } from './ft-ai.mjs'
+
 interface Env {
-  GEMINI_API_KEY?: string
+  FT_AI?: FtAiEnv['FT_AI']
+  FT_AI_KEY?: string
+  FT_AI_URL?: string
 }
 
 interface PagesContext {
@@ -36,10 +40,6 @@ interface RewriteRequest {
   strength?: Strength
 }
 
-// Alias that tracks the current Flash model. Pinning an explicit version is what
-// broke imagology once: gemini-2.5-flash was retired for new API keys and 404'd.
-const MODEL = 'gemini-flash-latest'
-const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent`
 
 // Guardrails. Gemini Flash handles far more, but a public endpoint needs a ceiling;
 // long documents can be rewritten in sections client-side if we ever need to.
@@ -116,33 +116,25 @@ function scrubTypography(s: string): string {
   return s.replace(PUNCT, (ch) => PUNCT_MAP[ch.codePointAt(0) as number] ?? ch)
 }
 
+// Gemini goes through the shared ft-ai gateway (FT_AI service binding). The
+// gateway owns the model choice for the `text` role, retries transient failures,
+// and falls back if a model is retired — so nothing here names a model.
 async function callGemini(
-  key: string,
+  env: FtAiEnv,
   prompt: string,
   generationConfig: Record<string, unknown>,
-  attempt = 0,
 ): Promise<{ text: string | null; status: number }> {
-  const res = await fetch(API_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key },
-    body: JSON.stringify({
-      contents: [{ parts: [{ text: prompt }] }],
-      generationConfig,
-    }),
-  })
-  if (!res.ok) {
-    const detail = await res.text().catch(() => '')
-    console.error(`Gemini ${res.status} (attempt ${attempt}): ${detail.slice(0, 500)}`)
-    if ((res.status === 429 || res.status >= 500) && attempt < 2) {
-      await new Promise((resolve) => setTimeout(resolve, 1200 * (attempt + 1)))
-      return callGemini(key, prompt, generationConfig, attempt + 1)
-    }
-    return { text: null, status: res.status }
+  const result = await generateContent(env, 'text', { contents: [{ parts: [{ text: prompt }] }], generationConfig })
+  if (result.status >= 400) {
+    const attempts = result.attempts.map((a) => `${a.model}=${a.status}`).join(',')
+    console.error(`ft-ai ${result.status} [${attempts}]: ${JSON.stringify(result.data).slice(0, 500)}`)
+    return { text: null, status: result.status }
   }
-  const data = (await res.json()) as {
-    candidates?: { content?: { parts?: { text?: string }[] }; finishReason?: string }[]
+  if (finishReasonOf(result.data) === 'MAX_TOKENS') {
+    console.error(`Answer truncated at maxOutputTokens (model ${result.model})`)
   }
-  return { text: data.candidates?.[0]?.content?.parts?.[0]?.text ?? null, status: res.status }
+  // Thinking models can emit several parts; the answer is the last non-thought text part.
+  return { text: textOf(result.data), status: result.status }
 }
 
 // How aggressively to resample word choice. Heavier rewriting disturbs a
@@ -181,9 +173,8 @@ function rewritePrompt(text: string, strength: Strength): string {
 }
 
 export const onRequestPost = async (context: PagesContext): Promise<Response> => {
-  const key = context.env.GEMINI_API_KEY
-  if (!key) {
-    console.error('GEMINI_API_KEY is not bound to this deployment')
+  if (!context.env.FT_AI && !context.env.FT_AI_KEY) {
+    console.error('FT_AI service binding is not configured for this deployment')
     return errorResponse('The rewrite engine is not configured for this deployment.')
   }
 
@@ -208,7 +199,7 @@ export const onRequestPost = async (context: PagesContext): Promise<Response> =>
     body.strength === 'light' || body.strength === 'thorough' ? body.strength : 'balanced'
 
   try {
-    const { text: out, status } = await callGemini(key, rewritePrompt(text, strength), {
+    const { text: out, status } = await callGemini(context.env, rewritePrompt(text, strength), {
       // Enough variation to genuinely resample word choice, not so much it drifts.
       temperature: 1.0,
       topP: 0.95,
